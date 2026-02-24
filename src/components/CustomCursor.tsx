@@ -1,13 +1,21 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { playClickSound } from "@/lib/sounds";
 
+interface Trail {
+  id: number;
+  x: number;
+  y: number;
+}
+
+let trailId = 0;
+
 const CustomCursor = () => {
   const [isTouch, setIsTouch] = useState(false);
   const [hovering, setHovering] = useState(false);
   const [clicking, setClicking] = useState(false);
+  const [trails, setTrails] = useState<Trail[]>([]);
   const cursorRef = useRef<HTMLDivElement>(null);
-  const pos = useRef({ x: 0, y: 0 });
-  const rafRef = useRef<number>(0);
+  const lastTrail = useRef(0);
 
   useEffect(() => {
     if ("ontouchstart" in window || navigator.maxTouchPoints > 0) {
@@ -16,10 +24,18 @@ const CustomCursor = () => {
   }, []);
 
   const onMove = useCallback((e: MouseEvent) => {
-    pos.current.x = e.clientX;
-    pos.current.y = e.clientY;
     if (cursorRef.current) {
       cursorRef.current.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+    }
+    // Spawn trail particle every 40ms
+    const now = Date.now();
+    if (now - lastTrail.current > 40) {
+      lastTrail.current = now;
+      const id = ++trailId;
+      setTrails((prev) => [...prev.slice(-5), { id, x: e.clientX, y: e.clientY }]);
+      setTimeout(() => {
+        setTrails((prev) => prev.filter((t) => t.id !== id));
+      }, 350);
     }
   }, []);
 
@@ -55,7 +71,6 @@ const CustomCursor = () => {
       document.removeEventListener("mousedown", onDown);
       document.body.style.cursor = "";
       style.remove();
-      cancelAnimationFrame(rafRef.current);
     };
   }, [isTouch, onMove, onOver, onDown]);
 
@@ -65,22 +80,40 @@ const CustomCursor = () => {
   const scale = clicking ? 0.7 : 1;
 
   return (
-    <div
-      ref={cursorRef}
-      className="fixed top-0 left-0 pointer-events-none z-[9999]"
-      style={{ willChange: "transform" }}
-    >
+    <>
+      {/* Trail particles */}
+      {trails.map((t) => (
+        <div
+          key={t.id}
+          className="fixed top-0 left-0 pointer-events-none z-[9998] rounded-full bg-white/20 mix-blend-difference"
+          style={{
+            width: 4,
+            height: 4,
+            transform: `translate(${t.x - 2}px, ${t.y - 2}px)`,
+            opacity: 0,
+            animation: "cursor-trail 350ms ease-out forwards",
+          }}
+        />
+      ))}
+
+      {/* Main cursor */}
       <div
-        className="rounded-full -translate-x-1/2 -translate-y-1/2 bg-white mix-blend-difference"
-        style={{
-          width: size,
-          height: size,
-          transform: `translate(-50%, -50%) scale(${scale})`,
-          transition: "width 0.2s ease, height 0.2s ease, transform 0.15s ease",
-          boxShadow: "0 0 12px 2px rgba(255,255,255,0.15)",
-        }}
-      />
-    </div>
+        ref={cursorRef}
+        className="fixed top-0 left-0 pointer-events-none z-[9999]"
+        style={{ willChange: "transform" }}
+      >
+        <div
+          className="rounded-full -translate-x-1/2 -translate-y-1/2 bg-white mix-blend-difference"
+          style={{
+            width: size,
+            height: size,
+            transform: `translate(-50%, -50%) scale(${scale})`,
+            transition: "width 0.2s ease, height 0.2s ease, transform 0.15s ease",
+            boxShadow: "0 0 12px 2px rgba(255,255,255,0.12)",
+          }}
+        />
+      </div>
+    </>
   );
 };
 
