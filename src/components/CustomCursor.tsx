@@ -1,15 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
-import { motion, useSpring } from "framer-motion";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { playClickSound } from "@/lib/sounds";
 
 const CustomCursor = () => {
   const [isTouch, setIsTouch] = useState(false);
   const [hovering, setHovering] = useState(false);
   const [clicking, setClicking] = useState(false);
-
-  const springCfg = { damping: 25, stiffness: 350 };
-  const x = useSpring(0, springCfg);
-  const y = useSpring(0, springCfg);
+  const cursorRef = useRef<HTMLDivElement>(null);
+  const pos = useRef({ x: 0, y: 0 });
+  const rafRef = useRef<number>(0);
 
   useEffect(() => {
     if ("ontouchstart" in window || navigator.maxTouchPoints > 0) {
@@ -17,13 +15,13 @@ const CustomCursor = () => {
     }
   }, []);
 
-  const onMove = useCallback(
-    (e: MouseEvent) => {
-      x.set(e.clientX);
-      y.set(e.clientY);
-    },
-    [x, y]
-  );
+  const onMove = useCallback((e: MouseEvent) => {
+    pos.current.x = e.clientX;
+    pos.current.y = e.clientY;
+    if (cursorRef.current) {
+      cursorRef.current.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+    }
+  }, []);
 
   const onOver = useCallback((e: MouseEvent) => {
     const t = e.target as HTMLElement;
@@ -46,34 +44,43 @@ const CustomCursor = () => {
     document.addEventListener("mouseover", onOver);
     document.addEventListener("mousedown", onDown);
     document.body.style.cursor = "none";
-    const allInteractive = document.querySelectorAll("a, button, input, textarea, select");
-    allInteractive.forEach((el) => ((el as HTMLElement).style.cursor = "none"));
+
+    const style = document.createElement("style");
+    style.textContent = "a,button,input,textarea,select,[role='button']{cursor:none!important}";
+    document.head.appendChild(style);
 
     return () => {
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseover", onOver);
       document.removeEventListener("mousedown", onDown);
       document.body.style.cursor = "";
+      style.remove();
+      cancelAnimationFrame(rafRef.current);
     };
   }, [isTouch, onMove, onOver, onDown]);
 
   if (isTouch) return null;
 
+  const size = hovering ? 36 : 8;
+  const scale = clicking ? 0.7 : 1;
+
   return (
-    <motion.div
+    <div
+      ref={cursorRef}
       className="fixed top-0 left-0 pointer-events-none z-[9999]"
-      style={{ x, y }}
+      style={{ willChange: "transform" }}
     >
-      <motion.div
+      <div
         className="rounded-full -translate-x-1/2 -translate-y-1/2 bg-white mix-blend-difference"
-        animate={{
-          width: hovering ? 44 : 12,
-          height: hovering ? 44 : 12,
-          scale: clicking ? 0.75 : 1,
+        style={{
+          width: size,
+          height: size,
+          transform: `translate(-50%, -50%) scale(${scale})`,
+          transition: "width 0.2s ease, height 0.2s ease, transform 0.15s ease",
+          boxShadow: "0 0 12px 2px rgba(255,255,255,0.15)",
         }}
-        transition={{ type: "spring", damping: 20, stiffness: 300 }}
       />
-    </motion.div>
+    </div>
   );
 };
 

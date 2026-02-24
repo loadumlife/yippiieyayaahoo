@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import IntroAnimation from "@/components/IntroAnimation";
 import Navbar from "@/components/Navbar";
 import CustomCursor from "@/components/CustomCursor";
+import InstagramButton from "@/components/InstagramButton";
 import ConcertSection from "@/components/ConcertSection";
 import PortraitSection from "@/components/PortraitSection";
 import ContactSection from "@/components/ContactSection";
@@ -15,6 +16,7 @@ const Index = () => {
     <>
       {!introComplete && <IntroAnimation onComplete={handleComplete} />}
       <CustomCursor />
+      {introComplete && <InstagramButton />}
 
       <motion.div
         initial={{ opacity: 0 }}
